@@ -1,0 +1,20 @@
+- hosts: all
+  become: yes
+  tasks:
+    
+    - name: update repository index
+      yum:
+        update_cache: true
+
+    - name: Install Packages
+      yum:
+        name:
+        - httpd
+        state: present
+
+    - name: Start Apache
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+

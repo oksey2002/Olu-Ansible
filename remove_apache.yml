@@ -1,0 +1,14 @@
+- hosts: all
+  become: yes
+  tasks:
+    
+    - name: update repository index
+      yum:
+        update_cache: true
+
+    - name: Install Packages
+      yum:
+        name:
+        - httpd
+        state: absent
+
