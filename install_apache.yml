@@ -5,16 +5,20 @@
     - name: update repository index
       yum:
         update_cache: true
+      when: ansible_distribution == "Centos:"
+      when: ansible_distribution == "Centos" and  ansible_distribution == "8.2"
+      when: ansible_distribution in ["Centos", "Redhat"]
 
     - name: Install Packages
       yum:
         name:
         - httpd
         state: present
+      when: ansible_distribution == "centos"
 
     - name: Start Apache
       service:
         name: httpd
         state: started
         enabled: yes
-
+      when: ansible_distribution == "centos"
