@@ -1,0 +1,87 @@
+---
+- name: Install and Configure Splunk Cluster
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    splunk_version: "9.1.2"
+    splunk_install_path: "/opt/splunk"
+    splunk_admin_password: "Tekstream"
+    splunk_web_port: "8000"
+    splunk_mgmt_port: "8089"
+    splunk_indexer_ports:
+      - "9997"
+      - "9998"
+      - "9999"
+    splunk_cluster_master_port: "8191"
+    splunk_search_head_ports:
+      - "8000"
+      - "8089"
+
+  tasks:
+    - name: Download Splunk
+      get_url:
+        url: "https://download.splunk.com/products/splunk/releases/{{ splunk_version }}/linux/splunk-{{ splunk_version }}-{{ ansible_system }}-{{ ansible_architecture }}.rpm"
+        dest: "/tmp/splunk.rpm"
+
+    - name: Install Splunk
+      yum:
+        name: "/tmp/splunk.rpm"
+        state: present
+
+    - name: Set Splunk Admin Password
+      command: "{{ splunk_install_path }}/bin/splunk edit user admin -password {{ splunk_admin_password }} -role admin -auth admin:Tekstream"
+      ignore_errors: yes
+
+    - name: Configure Splunk Boot-Start
+      command: "{{ splunk_install_path }}/bin/splunk enable boot-start -user splunk"
+
+    - name: Configure Splunk Web SSL
+      command: "{{ splunk_install_path }}/bin/splunk set web-port {{ splunk_web_port }} -auth admin:{{ splunk_admin_password }}"
+      when: inventory_hostname in ['search_head', 'cluster_master']
+
+    - name: Disable Splunk Web on Indexers
+      command: "{{ splunk_install_path }}/bin/splunk disable webserver -auth admin:{{ splunk_admin_password }}"
+      when: inventory_hostname.startswith('indexer')
+
+    - name: Configure Splunk Ports
+      command: "{{ splunk_install_path }}/bin/splunk set splunkd-port {{ splunk_mgmt_port }} -auth admin:{{ splunk_admin_password }}"
+      when: inventory_hostname not in ['search_head', 'cluster_master']
+
+    - name: Configure Cluster Master
+      command: "{{ splunk_install_path }}/bin/splunk init cluster-config -mode master -replication_factor 3 -search_factor 2 -auth admin:{{ splunk_admin_password }}"
+      when: inventory_hostname == 'cluster_master'
+
+    - name: Configure Indexer Clustering
+      command: "{{ splunk_install_path }}/bin/splunk init cluster-config -mode slave -master_uri https://cluster_master:{{ splunk_cluster_master_port }} -auth admin:{{ splunk_admin_password }}"
+      when: inventory_hostname.startswith('indexer')
+
+    - name: Restart Splunk
+      command: "{{ splunk_install_path }}/bin/splunk restart"
+      async: 0
+      poll: 0
+
+- name: Deploy Splunk Search Head
+  hosts: search_head
+  become: yes
+  gather_facts: yes
+
+  vars:
+    splunk_install_path: "/opt/splunk"
+    splunk_admin_password: "your_admin_password"
+    splunk_web_port: "8000"
+    splunk_mgmt_port: "8089"
+    splunk_search_head_ports:
+      - "8000"
+      - "8089"
+
+  tasks:
+    - name: Configure Splunk Boot-Start
+      command: "{{ splunk_install_path }}/bin/splunk enable boot-start -user splunk"
+
+    - name: Configure Splunk Web SSL
+      command: "{{ splunk_install_path }}/bin/splunk set web-port {{ splunk_web_port }} -auth admin:{{ splunk_admin_password }}"
+
+    - name: Restart Splunk
+      command: "{{ splunk_install_path }}/bin/splunk restart"

@@ -1,13 +1,11 @@
+---
+
 - hosts: all
   become: yes
   tasks:
-
-    - name: install wget
-      yum:
-        name: wget
-        state: latest
-
+    
     - name: setup repo for mysql latest
-      wget:
+      yum:
         name: http://repo.mysql.com/mysql57-community-release-el7-10.noarch.rpm
         state: latest
+      check_mode: yes

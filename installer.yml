@@ -1,28 +1,17 @@
 - hosts: all
   become: yes
   tasks:
-    - name: Setup repo for Mysql 5.7
-      wget:
-        name: http://repo.mysql.com/mysql57-community-release-el7-10.noarch.rpm
-        state: latest
 
     - name: Install Packages
       yum:
         name:
           - httpd
-          - mysql-community-server
           - firewalld
         state: present
 
     - name: Start Apache
       service:
         name: httpd
-        state: started
-        enabled: yes
-
-    - name: Start Mysql
-      service:
-        name: mysqld
         state: started
         enabled: yes
 
