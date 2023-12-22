@@ -1,0 +1,53 @@
+---
+- name: Install and Configure Splunk
+  hosts: all
+  become: true
+
+  vars:
+    splunk_version: "9.1.2"
+    splunk_conf_file: "/opt/splunk/etc/system/local/web.conf"
+    splunk_user: "splunk"
+    splunk_home: "/opt/splunk"
+    splunk_build: "b6b9c8185839"
+    splunk_rpm_url: "https://download.splunk.com/products/splunk/releases/{{ splunk_version }}/linux/splunk-{{ splunk_version }}-{{ splunk_build }}.x86_64.rpm"
+
+  tasks:
+    - name: Download Splunk RPM
+      get_url:
+        url: "{{ splunk_rpm_url }}"
+        dest: "/tmp/splunk.rpm"
+
+    - name: Install Splunk RPM
+      yum:
+        name: "/tmp/splunk.rpm"
+        state: present
+
+    - name: Start Splunk
+      command: "{{ splunk_home }}/bin/splunk start --accept-license --answer-yes"
+      args:
+        creates: "{{ splunk_home }}/var/run/splunk/splunkd.pid"
+
+    - name: Enable boot-start for Splunk
+      command: "{{ splunk_home }}/bin/splunk enable boot-start -user {{ splunk_user }}"
+
+    - name: Configure indexer clustering
+      shell: "{{ splunk_home }}/bin/splunk init shcluster-config -auth admin:Tekstream"
+
+    - name: Configure search head clustering
+      command: "{{ splunk_home }}/bin/splunk init shcluster-config -auth admin:Tekstream"
+      when: splunk_role == 'search_head_cluster'
+
+    - name: Disable web for indexers
+      command: "{{ splunk_home }}/bin/splunk disable web"
+      when: splunk_role == 'indexer'
+
+    - name: Create web.conf file
+      blockinfile:
+        path: "/opt/splunk/etc/system/local/web.conf"
+        block: |
+          [settings]
+          enableSplunkWebSSL = true
+
+    - name: Restart Splunk
+      command: "/opt/splunk/bin/splunk restart"
+      when: splunk_enable_webssl or splunk_role in ['indexer_cluster_master', 'search_head_cluster']

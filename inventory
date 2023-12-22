@@ -1,3 +1,10 @@
+
+[web_servers]
 centos@54.166.194.79
+
+
+[file_servers]
 centos@3.87.218.248
+
+[db_servers]
 centos@44.211.249.7
